@@ -65,6 +65,7 @@ class DBWNode(object):
         rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb)
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/final_waypoints', Lane, self.finalwaypt_cb)
+        rospy.Subscriber('/traffic_light_ahead', Bool, self.trafficLightsAhead_cb)
 
         self.current_vel = None
         self.linear_vel = None
@@ -73,6 +74,7 @@ class DBWNode(object):
         self.throttle = self.steering = self.brake = 0
         self.pose = None
         self.finalwaypts = None
+        self.isCloseToTrafficLight = False
 
         self.loop()
 
@@ -81,7 +83,8 @@ class DBWNode(object):
         while not rospy.is_shutdown():
             if not None in (self.current_vel, self.linear_vel, self.angular_vel):
                 self.throttle, self.brake, self.steering = \
-                    self.controller.control(self.current_vel, self.dbw_enabled, self.linear_vel, self.finalwaypts, self.pose)
+                    self.controller.control(self.current_vel, self.dbw_enabled, \
+                    self.linear_vel, self.finalwaypts, self.pose, self.isCloseToTrafficLight)
             
             if self.dbw_enabled:
                 self.publish(self.throttle, self.brake, self.steering)
@@ -95,6 +98,9 @@ class DBWNode(object):
 
     def finalwaypt_cb(self, msg):
         self.finalwaypts = msg
+    
+    def trafficLightsAhead_cb(self, msg):
+        self.isCloseToTrafficLight = msg.data
 
     def twist_cb(self, msg):
         self.linear_vel = msg.twist.linear.x

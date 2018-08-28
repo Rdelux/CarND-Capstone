@@ -45,7 +45,7 @@ class Controller(object):
         self.last_time = rospy.get_time()
 
     def control(self, current_vel, dbw_enabled, linear_vel, \
-                base_lane, car_coordintes):
+                base_lane, car_coordintes, isTrafficLightAhead):
         # TODO: Change the arg, kwarg list to suit your needs
         # Return throttle, brake, steer
 
@@ -104,18 +104,20 @@ class Controller(object):
 
         rospy.loginfo("steering  %f", steering)
         rospy.loginfo("-------------->")
-        throttle = self.throttle_controller.step(vel_error, sample_time)
-        throttle = 0.42
+        #throttle = self.throttle_controller.step(vel_error, sample_time)
         brake = 0
-
-        if linear_vel == 0. and current_vel < 0.1:
+        throttle = 0.42
+        if(isTrafficLightAhead == True and current_vel > 9.0):
             throttle = 0
-            brake = 10
-        elif throttle < .1 and vel_error < 0:
+            brake = 20
+
+        if linear_vel == 0.:
+            throttle = 0
+            brake = 400
+        elif vel_error < 0:
             throttle = 0
             decel = max(vel_error, self.decel_limit)
-            #brake = abs(decel) * self.vehicle_mass * self.wheel_radius
-            brake = 10
+            brake = abs(decel) * self.vehicle_mass * self.wheel_radius
     
         return throttle, brake, steering
 

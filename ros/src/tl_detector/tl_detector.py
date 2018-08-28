@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import rospy
 from std_msgs.msg import Int32
+from std_msgs.msg import Bool
 from geometry_msgs.msg import PoseStamped, Pose
 from styx_msgs.msg import TrafficLightArray, TrafficLight
 from styx_msgs.msg import Lane
@@ -40,6 +41,7 @@ class TLDetector(object):
         self.config = yaml.load(config_string)
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
+        self.upcoming_light_pub = rospy.Publisher('/traffic_light_ahead', Bool, queue_size=1)
 
         self.light_classifier = TLClassifier()
         self.listener = tf.TransformListener()
@@ -48,6 +50,7 @@ class TLDetector(object):
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
         self.state_count = 0
+        self.is120wpAway_prev = False
 
         rospy.spin()
 
@@ -131,6 +134,7 @@ class TLDetector(object):
 
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
+        is120wpAway = False
         if(self.pose):
             car_wp_idx = self.get_closest_waypoint(self.pose.pose.position.x, self.pose.pose.position.y)
 
@@ -140,10 +144,22 @@ class TLDetector(object):
                 temp_wp_idx = self.get_closest_waypoint(line[0], line[1])
 
                 d = temp_wp_idx - car_wp_idx
+                if d >= 0 and d < 120:
+                    is120wpAway = True
+
                 if d >= 0 and d < diff:
                     diff = d
                     closest_light = light
                     line_wp_idx = temp_wp_idx
+
+        if(self.is120wpAway_prev == False and is120wpAway==True):
+            self.upcoming_light_pub.publish(Bool(True))
+            rospy.loginfo("True traffic sent")
+        elif(self.is120wpAway_prev==True and is120wpAway==False):
+            self.upcoming_light_pub.publish(Bool(False))
+            rospy.loginfo("False traffic sent")
+        
+        self.is120wpAway_prev = is120wpAway
 
         if closest_light:
             state = self.get_light_state(closest_light)
