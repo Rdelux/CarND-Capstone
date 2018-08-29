@@ -109,15 +109,18 @@ class Controller(object):
         throttle = 0.42
         if(isTrafficLightAhead == True and current_vel > 9.0):
             throttle = 0
-            brake = 20
+            brake = 200
 
         if linear_vel == 0.:
             throttle = 0
-            brake = 400
+            brake = 1500
+        # elif vel_error < 0 and current_vel >= 9:
+        #     throttle = 0
+        #     decel = min(vel_error, self.decel_limit)
+        #     brake = abs(decel) * self.vehicle_mass * self.wheel_radius
         elif vel_error < 0:
             throttle = 0
-            decel = max(vel_error, self.decel_limit)
-            brake = abs(decel) * self.vehicle_mass * self.wheel_radius
-    
+            brake = 50
+
         return throttle, brake, steering
 
