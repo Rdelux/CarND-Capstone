@@ -107,6 +107,8 @@ class Controller(object):
         #throttle = self.throttle_controller.step(vel_error, sample_time)
         brake = 0
         throttle = 0.42
+        if(isTrafficLightAhead == True):
+            throttle = 0.1
         if(isTrafficLightAhead == True and current_vel > 4.47):
             throttle = 0
             brake = 200

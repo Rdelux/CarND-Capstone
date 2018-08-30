@@ -108,7 +108,7 @@ class WaypointUpdater(object):
             dist = self.distance(waypoints, i, stop_idx)
             vel = math.sqrt(2 * MAX_DECEL * dist)
 
-            if vel < 1.:
+            if vel < 1.2:
                 vel = 0
 
             p.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
