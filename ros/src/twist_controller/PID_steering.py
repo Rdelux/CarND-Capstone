@@ -29,7 +29,11 @@ class PID_steering(object):
         rospy.loginfo("val %f", val)
         
         import math
-        val = math.fmod(val,1.7)
+        #val = math.fmod(val,self.max)
+        if(val > self.max):
+            val = self.max
+        elif(val < self.min):
+            val = self.min
  
         self.int_val = integral
         self.last_error = error

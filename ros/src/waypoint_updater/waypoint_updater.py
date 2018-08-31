@@ -25,6 +25,7 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
 LOOKAHEAD_WPS = 40 # Number of waypoints we will publish. You can change this number
+LOOKBEHIND_WPS = 10
 MAX_DECEL = .3
 
 class WaypointUpdater(object):
@@ -60,7 +61,6 @@ class WaypointUpdater(object):
         y = self.pose.pose.position.y
 
         closest_idx = self.waypoint_tree.query([x, y], 1)[1]
-        closest_idx -= 1
 
         closest_coord = self.waypoints_2d[closest_idx]
         prev_coord = self.waypoints_2d[closest_idx - 1]
@@ -88,7 +88,7 @@ class WaypointUpdater(object):
         #     closest_idx = 0
         # else:
         #     closest_idx = closest_idx-1
-        base_waypoints = self.base_lane.waypoints[closest_idx:farthest_idx]
+        base_waypoints = self.base_lane.waypoints[closest_idx-LOOKBEHIND_WPS:farthest_idx]
 
         if self.stopline_wp_idx == -1 or (self.stopline_wp_idx >= farthest_idx):
             lane.waypoints = base_waypoints

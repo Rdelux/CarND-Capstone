@@ -73,7 +73,7 @@ class Controller(object):
             pt1yaw = euler[2]
             rospy.loginfo("pt1yaw %f, %f, %f", pt1.x, pt1.y, pt1yaw)
 
-            for i in range(10):
+            for i in range(len(base_lane.waypoints)):
                 pos = base_lane.waypoints[i].pose.pose.position
                 x_origin = pos.x - car.x
                 y_origin = pos.y - car.y
@@ -86,7 +86,6 @@ class Controller(object):
 
             p = interpolate.interp1d(x, y, fill_value="extrapolate")
             CTE = -p(0)
-            rospy.loginfo("CTE %f", CTE)
 
         ################################
 
