@@ -61,6 +61,8 @@ class Controller(object):
             orient = car_coordintes.pose.orientation
             euler = tf.transformations.euler_from_quaternion([orient.x, orient.y, orient.z, orient.w])
             car_yaw = euler[2]
+            if(car_yaw < 0):
+                car_yaw = car_yaw + (2 * math.pi)
             x = []
             y = []
             carx = car.x
@@ -84,7 +86,7 @@ class Controller(object):
                 x.append(x_rotated)
                 y.append(y_rotated)
 
-            p = interpolate.interp1d(x, y, fill_value="extrapolate")
+            p = interpolate.interp1d(x, y, kind="cubic", fill_value="extrapolate")
             CTE = -p(0)
 
         ################################
@@ -106,6 +108,7 @@ class Controller(object):
         #throttle = self.throttle_controller.step(vel_error, sample_time)
         brake = 0
         throttle = 0.42
+
         if(isTrafficLightAhead == True):
             throttle = 0.1
         if(isTrafficLightAhead == True and current_vel > 4.47):
@@ -115,13 +118,14 @@ class Controller(object):
         if linear_vel == 0.:
             throttle = 0
             brake = 1500
-        # elif vel_error < 0 and current_vel >= 9:
-        #     throttle = 0
-        #     decel = min(vel_error, self.decel_limit)
-        #     brake = abs(decel) * self.vehicle_mass * self.wheel_radius
         elif vel_error < 0:
             throttle = 0
             brake = 50
 
+        # A hack for a simulator bug
+        # Just slow the car down between these points
+        if(car.x > 1000 and car.x < 1400):
+            if(car.y >2920 and car.y < 2980):
+                throttle = .15
         return throttle, brake, steering
 
