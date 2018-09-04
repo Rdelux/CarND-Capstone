@@ -127,5 +127,12 @@ class Controller(object):
         if(car.x > 1000 and car.x < 1400):
             if(car.y >2920 and car.y < 2980):
                 throttle = .15
+        if(car.x > 730 and car.y > 1128 and car.y < 1134):
+            throttle = .15
+
+        if(len(base_lane.waypoints) < 20):
+            rospy.loginfo("stopping")
+            throttle = 0
+            brake = 3500
         return throttle, brake, steering
 
