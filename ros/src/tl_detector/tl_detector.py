@@ -77,28 +77,7 @@ class TLDetector(object):
             msg (Image): image from car-mounted camera
 
         """
-        cv_image = img2 = self.bridge.imgmsg_to_cv2(msg, "bgr8")
-        cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-        cv_image = cv2.GaussianBlur(cv_image, (5, 5), 0)
-        circles = cv2.HoughCircles(cv_image,cv2.HOUGH_GRADIENT,1,50,
-            param1=100,param2=17,minRadius=4,maxRadius=20)
-        if(circles is None):
-            return
-        isLightDetected = False
-        circles = np.uint16(np.around(circles))
-        for i in circles[0,:]:
-            if(img2[i[1], i[0]][2] > 190 and img2[i[1], i[0]][1] < 140):
-                rospy.loginfo("red")
-                isLightDetected = True
-                break
-            elif(img2[i[1], i[0]][1] > 230):
-                rospy.loginfo("green")
-                isLightDetected = True
-                break
-        if(isLightDetected == False):
-            rospy.loginfo("neither")
-
-        light_wp, state = self.process_traffic_lights()
+        light_wp, state = self.process_traffic_lights(msg)
 
         '''
         Publish upcoming red lights at camera frequency.
@@ -132,7 +111,7 @@ class TLDetector(object):
         closest_idx = self.waypoint_tree.query([x, y], 1)[1]
         return closest_idx
 
-    def get_light_state(self, light):
+    def get_light_state(self, light, msg):
         """Determines the current color of the traffic light
 
         Args:
@@ -142,9 +121,29 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
+        cv_image = img2 = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+        cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+        cv_image = cv2.GaussianBlur(cv_image, (5, 5), 0)
+        circles = cv2.HoughCircles(cv_image,cv2.HOUGH_GRADIENT,1,50,
+            param1=100,param2=17,minRadius=4,maxRadius=20)
+        if(circles is None):
+            return
+        isLightDetected = False
+        circles = np.uint16(np.around(circles))
+        for i in circles[0,:]:
+            if(img2[i[1], i[0]][2] > 190 and img2[i[1], i[0]][1] < 140):
+                rospy.loginfo("red")
+                isLightDetected = True
+                break
+            elif(img2[i[1], i[0]][1] > 230):
+                rospy.loginfo("green")
+                isLightDetected = True
+                break
+        if(isLightDetected == False):
+            rospy.loginfo("neither")
         return light.state
 
-    def process_traffic_lights(self):
+    def process_traffic_lights(self, msg):
         """Finds closest visible traffic light, if one exists, and determines its
             location and color
 
@@ -185,8 +184,8 @@ class TLDetector(object):
         
         self.is120wpAway_prev = is120wpAway
 
-        if closest_light:
-            state = self.get_light_state(closest_light)
+        if closest_light and is120wpAway == True:
+            state = self.get_light_state(closest_light, msg)
             return line_wp_idx, state
         
         return -1, TrafficLight.UNKNOWN
