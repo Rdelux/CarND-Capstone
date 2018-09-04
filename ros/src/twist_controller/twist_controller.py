@@ -86,7 +86,7 @@ class Controller(object):
                 x.append(x_rotated)
                 y.append(y_rotated)
 
-            p = interpolate.interp1d(x, y, kind="cubic", fill_value="extrapolate")
+            p = interpolate.interp1d(x, y, kind="quadratic", fill_value="extrapolate")
             CTE = -p(0)
 
         ################################
