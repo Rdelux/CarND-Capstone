@@ -128,20 +128,18 @@ class TLDetector(object):
             param1=100,param2=17,minRadius=4,maxRadius=20)
         if(circles is None):
             return
-        isLightDetected = False
+        #isLightDetected = False
         circles = np.uint16(np.around(circles))
         for i in circles[0,:]:
             if(img2[i[1], i[0]][2] > 190 and img2[i[1], i[0]][1] < 140):
                 rospy.loginfo("red")
-                isLightDetected = True
-                break
+                return TrafficLight.RED
             elif(img2[i[1], i[0]][1] > 230):
                 rospy.loginfo("green")
-                isLightDetected = True
-                break
-        if(isLightDetected == False):
-            rospy.loginfo("neither")
-        return light.state
+                return TrafficLight.GREEN
+
+        rospy.loginfo("unknown")
+        return TrafficLight.UNKNOWN
 
     def process_traffic_lights(self, msg):
         """Finds closest visible traffic light, if one exists, and determines its
