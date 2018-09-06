@@ -44,9 +44,9 @@ class Controller(object):
 
         self.last_time = rospy.get_time()
 
-    def calculate_CTE(self, car_coordintes, base_lane):
+    def PID(self, car_coordintes, base_lane, sample_time):
         CTE = 0
-        car = None
+        steering = 0
         if (car_coordintes != None and base_lane != None and len(base_lane.waypoints) > 0):
             car = car_coordintes.pose.position
             orient = car_coordintes.pose.orientation
@@ -79,7 +79,8 @@ class Controller(object):
 
             p = interpolate.interp1d(x, y, kind="quadratic", fill_value="extrapolate")
             CTE = -p(0)
-            return CTE
+            steering = self.yaw_controller1.step(CTE, sample_time)
+        return steering
 
     def control(self, current_vel, dbw_enabled, linear_vel, \
                 base_lane, car_coordintes, isTrafficLightAhead, navtype):
@@ -91,18 +92,15 @@ class Controller(object):
             self.yaw_controller1.reset()
             return 0., 0., 0.
 
-
-        CTE = self.calculate_CTE(car_coordintes, base_lane)
-        current_vel = self.vel_lpf.filt(current_vel)
-
-        vel_error = linear_vel - current_vel
-        self.last_vel = current_vel
-
         current_time = rospy.get_time()
         sample_time = current_time - self.last_time
         self.last_time = current_time
 
-        steering = self.yaw_controller1.step(CTE, sample_time)
+        steering = self.PID(car_coordintes, base_lane, sample_time)
+        current_vel = self.vel_lpf.filt(current_vel)
+        vel_error = linear_vel - current_vel
+        self.last_vel = current_vel
+
         #steering = self.steer_lpf.filt(steering)
 
         rospy.loginfo("steering  %f", steering)
