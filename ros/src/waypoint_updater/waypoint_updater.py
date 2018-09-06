@@ -120,7 +120,8 @@ class WaypointUpdater(object):
         self.pose = msg
     
     def navtype_cb(self, msg):
-        if(msg == NavType.WAYPOINT_FOLLOWER):
+        if(msg.data == NavType.WAYPOINT_FOLLOWER):
+            global LOOKBEHIND_WPS
             LOOKBEHIND_WPS = 0
 
     def waypoints_cb(self, waypoints):

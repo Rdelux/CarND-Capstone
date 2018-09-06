@@ -8,6 +8,7 @@ import math
 import numpy as np
 from scipy import interpolate
 import tf
+from styx_msgs.msg import NavType
 
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
@@ -41,6 +42,8 @@ class Controller(object):
         self.vehicle_mass = vehicle_mass
         self.decel_limit = decel_limit
         self.wheel_radius = wheel_radius
+        self.wheel_base = wheel_base
+        self.steer_ratio = steer_ratio
 
         self.last_time = rospy.get_time()
 
@@ -82,7 +85,14 @@ class Controller(object):
             steering = self.yaw_controller1.step(CTE, sample_time)
         return steering
 
-    def control(self, current_vel, dbw_enabled, linear_vel, \
+    def wp_follower(self, linear_vel, angular_vel):
+        from math import atan
+        r = linear_vel/angular_vel
+        angle = math.atan(self.wheel_base/r)
+        steering = angle * self.steer_ratio
+        return steering
+    
+    def control(self, current_vel, dbw_enabled, linear_vel, angular_vel, \
                 base_lane, car_coordintes, isTrafficLightAhead, navtype):
         # TODO: Change the arg, kwarg list to suit your needs
         # Return throttle, brake, steer
@@ -96,12 +106,17 @@ class Controller(object):
         sample_time = current_time - self.last_time
         self.last_time = current_time
 
-        steering = self.PID(car_coordintes, base_lane, sample_time)
+        steering = 0
+        if(navtype == NavType.PID):
+            steering = self.PID(car_coordintes, base_lane, sample_time)
+        else:
+            steering = self.wp_follower(linear_vel, angular_vel)
+            global STOPPING_THRESHOLD
+            STOPPING_THRESHOLD = 4
+
         current_vel = self.vel_lpf.filt(current_vel)
         vel_error = linear_vel - current_vel
         self.last_vel = current_vel
-
-        #steering = self.steer_lpf.filt(steering)
 
         rospy.loginfo("steering  %f", steering)
         rospy.loginfo("-------------->")
@@ -134,6 +149,7 @@ class Controller(object):
             if(car.x > 730 and car.y > 1128 and car.y < 1134):
                 throttle = .10
 
+        rospy.loginfo(len(base_lane.waypoints))
         if(len(base_lane.waypoints) < STOPPING_THRESHOLD):
             rospy.loginfo("stopping")
             throttle = 0
