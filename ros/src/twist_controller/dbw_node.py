@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import rospy
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Int32
 from styx_msgs.msg import Lane, Waypoint
 from dbw_mkz_msgs.msg import ThrottleCmd, SteeringCmd, BrakeCmd, SteeringReport
 from geometry_msgs.msg import TwistStamped, PoseStamped
@@ -66,6 +66,7 @@ class DBWNode(object):
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/final_waypoints', Lane, self.finalwaypt_cb)
         rospy.Subscriber('/traffic_light_ahead', Bool, self.trafficLightsAhead_cb)
+        rospy.Subscriber('/nav_type', Int32, self.navtype_cb)
 
         self.current_vel = None
         self.linear_vel = None
@@ -75,6 +76,7 @@ class DBWNode(object):
         self.pose = None
         self.finalwaypts = None
         self.isCloseToTrafficLight = False
+        self.navtype = None
 
         self.loop()
 
@@ -84,7 +86,8 @@ class DBWNode(object):
             if not None in (self.current_vel, self.linear_vel, self.angular_vel):
                 self.throttle, self.brake, self.steering = \
                     self.controller.control(self.current_vel, self.dbw_enabled, \
-                    self.linear_vel, self.finalwaypts, self.pose, self.isCloseToTrafficLight)
+                    self.linear_vel, self.finalwaypts, self.pose, \
+                    self.isCloseToTrafficLight, self.navtype)
             
             if self.dbw_enabled:
                 self.publish(self.throttle, self.brake, self.steering)
@@ -108,6 +111,9 @@ class DBWNode(object):
     
     def velocity_cb(self, msg):
         self.current_vel = msg.twist.linear.x
+
+    def navtype_cb(self, msg):
+        self.navtype = msg
 
     def publish(self, throttle, brake, steer):
         tcmd = ThrottleCmd()

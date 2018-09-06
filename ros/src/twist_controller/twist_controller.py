@@ -11,7 +11,7 @@ import tf
 
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
-
+STOPPING_THRESHOLD = 20
 
 class Controller(object):
     def __init__(self, vehicle_mass, decel_limit,
@@ -44,17 +44,7 @@ class Controller(object):
 
         self.last_time = rospy.get_time()
 
-    def control(self, current_vel, dbw_enabled, linear_vel, \
-                base_lane, car_coordintes, isTrafficLightAhead):
-        # TODO: Change the arg, kwarg list to suit your needs
-        # Return throttle, brake, steer
-
-        if not dbw_enabled:
-            self.throttle_controller.reset()
-            self.yaw_controller1.reset()
-            return 0., 0., 0.
-
-        ################################
+    def calculate_CTE(self, car_coordintes, base_lane):
         CTE = 0
         car = None
         if (car_coordintes != None and base_lane != None and len(base_lane.waypoints) > 0):
@@ -89,9 +79,20 @@ class Controller(object):
 
             p = interpolate.interp1d(x, y, kind="quadratic", fill_value="extrapolate")
             CTE = -p(0)
+            return CTE
 
-        ################################
+    def control(self, current_vel, dbw_enabled, linear_vel, \
+                base_lane, car_coordintes, isTrafficLightAhead, navtype):
+        # TODO: Change the arg, kwarg list to suit your needs
+        # Return throttle, brake, steer
 
+        if not dbw_enabled:
+            self.throttle_controller.reset()
+            self.yaw_controller1.reset()
+            return 0., 0., 0.
+
+
+        CTE = self.calculate_CTE(car_coordintes, base_lane)
         current_vel = self.vel_lpf.filt(current_vel)
 
         vel_error = linear_vel - current_vel
@@ -125,14 +126,17 @@ class Controller(object):
 
         # A hack for a simulator bug
         # Just slow the car down between these points
+        car = car_coordintes.pose.position
         if(car is not None):
             if(car.x > 1000 and car.x < 1400):
                 if(car.y >2920 and car.y < 2980):
                     throttle = .15
-            if(car.x > 730 and car.y > 1128 and car.y < 1134):
-                throttle = .15
 
-        if(len(base_lane.waypoints) < 5):
+            #End of the highway track
+            if(car.x > 730 and car.y > 1128 and car.y < 1134):
+                throttle = .10
+
+        if(len(base_lane.waypoints) < STOPPING_THRESHOLD):
             rospy.loginfo("stopping")
             throttle = 0
             brake = 10000

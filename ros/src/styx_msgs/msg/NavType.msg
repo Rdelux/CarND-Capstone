@@ -1,0 +1,2 @@
+uint8 PID=1
+uint8 WAYPOINT_FOLLOWER=0
