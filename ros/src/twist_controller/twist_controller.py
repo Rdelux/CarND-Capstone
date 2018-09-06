@@ -56,7 +56,8 @@ class Controller(object):
 
         ################################
         CTE = 0
-        if (car_coordintes != None and base_lane != None):
+        car = None
+        if (car_coordintes != None and base_lane != None and len(base_lane.waypoints) > 0):
             car = car_coordintes.pose.position
             orient = car_coordintes.pose.orientation
             euler = tf.transformations.euler_from_quaternion([orient.x, orient.y, orient.z, orient.w])
@@ -124,15 +125,16 @@ class Controller(object):
 
         # A hack for a simulator bug
         # Just slow the car down between these points
-        if(car.x > 1000 and car.x < 1400):
-            if(car.y >2920 and car.y < 2980):
+        if(car is not None):
+            if(car.x > 1000 and car.x < 1400):
+                if(car.y >2920 and car.y < 2980):
+                    throttle = .15
+            if(car.x > 730 and car.y > 1128 and car.y < 1134):
                 throttle = .15
-        if(car.x > 730 and car.y > 1128 and car.y < 1134):
-            throttle = .15
 
-        if(len(base_lane.waypoints) < 20):
+        if(len(base_lane.waypoints) < 5):
             rospy.loginfo("stopping")
             throttle = 0
-            brake = 3500
+            brake = 10000
         return throttle, brake, steering
 
