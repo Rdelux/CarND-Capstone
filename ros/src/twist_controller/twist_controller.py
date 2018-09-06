@@ -23,7 +23,7 @@ class Controller(object):
         ki = 0.1
         kd = 0.
         mn = 0.
-        mx = 0.2
+        mx = 0.42
         self.throttle_controller = PID(kp, ki, kd, mn, mx)
 
         kp = 0.3
@@ -106,9 +106,9 @@ class Controller(object):
 
         rospy.loginfo("steering  %f", steering)
         rospy.loginfo("-------------->")
-        #throttle = self.throttle_controller.step(vel_error, sample_time)
         brake = 0
-        throttle = 0.42
+        throttle = 0
+        throttle = self.throttle_controller.step(vel_error, sample_time)
 
         if(isTrafficLightAhead == True):
             throttle = 0.1
