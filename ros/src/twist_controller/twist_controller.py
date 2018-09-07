@@ -2,24 +2,16 @@ import rospy
 
 from pid import PID
 from PID_steering import PID_steering
-from yaw_controller import YawController
 from lowpass import LowPassFilter
 import math
-import numpy as np
 from scipy import interpolate
 import tf
 from styx_msgs.msg import NavType
 
-GAS_DENSITY = 2.858
-ONE_MPH = 0.44704
 STOPPING_THRESHOLD = 20
 
 class Controller(object):
-    def __init__(self, vehicle_mass, decel_limit,
-                wheel_radius, wheel_base, steer_ratio, max_lat_accel, max_steer_angle):
-        
-        #self.yaw_controller = YawController(wheel_base, steer_ratio, 0.1, max_lat_accel, max_steer_angle)
-
+    def __init__(self, wheel_base, steer_ratio):
         kp = 0.3
         ki = 0.1
         kd = 0.
@@ -32,16 +24,12 @@ class Controller(object):
         kd = 0.5
         mn = -1.7
         mx = 1.7
-        self.yaw_controller1 = PID_steering(kp, ki, kd, mn, mx)
+        self.PID_controller = PID_steering(kp, ki, kd, mn, mx)
 
         tau = 0.5
         ts = 0.02
         self.vel_lpf = LowPassFilter(tau, ts)
-        self.steer_lpf = LowPassFilter(tau, ts)
 
-        self.vehicle_mass = vehicle_mass
-        self.decel_limit = decel_limit
-        self.wheel_radius = wheel_radius
         self.wheel_base = wheel_base
         self.steer_ratio = steer_ratio
 
@@ -59,16 +47,7 @@ class Controller(object):
                 car_yaw = car_yaw + (2 * math.pi)
             x = []
             y = []
-            carx = car.x
-            cary = car.y
-            rospy.loginfo("caryaw %f, %f, %f", car.x, car.y,car_yaw)
-            index = 0
-            pt1 = base_lane.waypoints[index].pose.pose.position
-            orient = base_lane.waypoints[index].pose.pose.orientation
-            euler = tf.transformations.euler_from_quaternion([orient.x, orient.y, orient.z, orient.w])
-            pt1yaw = euler[2]
-            rospy.loginfo("pt1yaw %f, %f, %f", pt1.x, pt1.y, pt1yaw)
-
+            
             for i in range(len(base_lane.waypoints)):
                 pos = base_lane.waypoints[i].pose.pose.position
                 x_origin = pos.x - car.x
@@ -82,7 +61,7 @@ class Controller(object):
 
             p = interpolate.interp1d(x, y, kind="quadratic", fill_value="extrapolate")
             CTE = -p(0)
-            steering = self.yaw_controller1.step(CTE, sample_time)
+            steering = self.PID_controller.step(CTE, sample_time)
         return steering
 
     def wp_follower(self, linear_vel, angular_vel):
@@ -94,12 +73,11 @@ class Controller(object):
     
     def control(self, current_vel, dbw_enabled, linear_vel, angular_vel, \
                 base_lane, car_coordintes, isTrafficLightAhead, navtype):
-        # TODO: Change the arg, kwarg list to suit your needs
         # Return throttle, brake, steer
 
         if not dbw_enabled:
             self.throttle_controller.reset()
-            self.yaw_controller1.reset()
+            self.PID_controller.reset()
             return 0., 0., 0.
 
         current_time = rospy.get_time()
@@ -118,8 +96,6 @@ class Controller(object):
         vel_error = linear_vel - current_vel
         self.last_vel = current_vel
 
-        rospy.loginfo("steering  %f", steering)
-        rospy.loginfo("-------------->")
         brake = 0
         throttle = 0
         throttle = self.throttle_controller.step(vel_error, sample_time)
@@ -149,9 +125,7 @@ class Controller(object):
             if(car.x > 730 and car.y > 1128 and car.y < 1134):
                 throttle = .10
 
-        rospy.loginfo(len(base_lane.waypoints))
         if(len(base_lane.waypoints) < STOPPING_THRESHOLD):
-            rospy.loginfo("stopping")
             throttle = 0
             brake = 10000
         return throttle, brake, steering

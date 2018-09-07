@@ -17,19 +17,10 @@ class PID_steering(object):
         self.int_val = 0.0
 
     def step(self, error, sample_time):
-
         integral = self.int_val + error * sample_time;
         derivative = (error - self.last_error) / sample_time;
         val = (-self.kp * error) + (-self.ki * integral) + (-self.kd * derivative);
 
-        rospy.loginfo("CTE %f", error)
-        rospy.loginfo("derivative %f", derivative)
-        rospy.loginfo("integral %f", integral)
-        rospy.loginfo("time sample %f", sample_time)
-        rospy.loginfo("val %f", val)
-        
-        import math
-        #val = math.fmod(val,self.max)
         if(val > self.max):
             val = self.max
         elif(val < self.min):

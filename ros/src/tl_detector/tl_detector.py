@@ -6,8 +6,6 @@ from geometry_msgs.msg import PoseStamped, Pose
 from styx_msgs.msg import TrafficLightArray, TrafficLight
 from styx_msgs.msg import Lane
 from sensor_msgs.msg import Image
-from light_classification.tl_classifier import TLClassifier
-import tf
 import cv2
 import yaml
 from scipy.spatial import KDTree
@@ -45,9 +43,6 @@ class TLDetector(object):
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
         self.upcoming_light_pub = rospy.Publisher('/traffic_light_ahead', Bool, queue_size=1)
-
-        self.light_classifier = TLClassifier()
-        self.listener = tf.TransformListener()
 
         self.state = TrafficLight.UNKNOWN
         self.last_state = TrafficLight.UNKNOWN
@@ -107,7 +102,6 @@ class TLDetector(object):
             int: index of the closest waypoint in self.waypoints
 
         """
-        #TODO implement
         closest_idx = self.waypoint_tree.query([x, y], 1)[1]
         return closest_idx
 
@@ -128,17 +122,13 @@ class TLDetector(object):
             param1=100,param2=17,minRadius=4,maxRadius=20)
         if(circles is None):
             return
-        #isLightDetected = False
         circles = np.uint16(np.around(circles))
         for i in circles[0,:]:
             if(img2[i[1], i[0]][2] > 190 and img2[i[1], i[0]][1] < 140):
-                rospy.loginfo("red")
                 return TrafficLight.RED
             elif(img2[i[1], i[0]][1] > 230):
-                rospy.loginfo("green")
                 return TrafficLight.GREEN
 
-        rospy.loginfo("unknown")
         return TrafficLight.UNKNOWN
 
     def process_traffic_lights(self, msg):
@@ -153,7 +143,6 @@ class TLDetector(object):
         closest_light = None
         line_wp_idx = None
 
-        # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
         is120wpAway = False
         if(self.pose):
@@ -175,10 +164,8 @@ class TLDetector(object):
 
         if(self.is120wpAway_prev == False and is120wpAway==True):
             self.upcoming_light_pub.publish(Bool(True))
-            rospy.loginfo("True traffic sent")
         elif(self.is120wpAway_prev==True and is120wpAway==False):
             self.upcoming_light_pub.publish(Bool(False))
-            rospy.loginfo("False traffic sent")
         
         self.is120wpAway_prev = is120wpAway
 
