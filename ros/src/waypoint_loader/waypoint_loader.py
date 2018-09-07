@@ -5,15 +5,13 @@ import csv
 import math
 
 from geometry_msgs.msg import Quaternion
-
-from styx_msgs.msg import Lane, Waypoint
+from std_msgs.msg import Int32
+from styx_msgs.msg import Lane, Waypoint, NavType
 
 import tf
 import rospy
 
 CSV_HEADER = ['x', 'y', 'z', 'yaw']
-MAX_DECEL = 1.0
-
 
 class WaypointLoader(object):
 
@@ -21,8 +19,15 @@ class WaypointLoader(object):
         rospy.init_node('waypoint_loader', log_level=rospy.DEBUG)
 
         self.pub = rospy.Publisher('/base_waypoints', Lane, queue_size=1, latch=True)
+        self.navTypePub = rospy.Publisher('/nav_type', Int32, queue_size=1, latch=True)
 
-        self.velocity = self.kmph2mps(rospy.get_param('~velocity'))
+        velocityParam = rospy.get_param('~velocity')
+        if(velocityParam <= 10):
+            self.navTypePub.publish(Int32(NavType.WAYPOINT_FOLLOWER))
+        else:
+            self.navTypePub.publish(Int32(NavType.PID))
+
+        self.velocity = self.kmph2mps(velocityParam)
         self.new_waypoint_loader(rospy.get_param('~path'))
         rospy.spin()
 
@@ -54,21 +59,6 @@ class WaypointLoader(object):
                 p.twist.twist.linear.x = float(self.velocity)
 
                 waypoints.append(p)
-        return self.decelerate(waypoints)
-
-    def distance(self, p1, p2):
-        x, y, z = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
-        return math.sqrt(x*x + y*y + z*z)
-
-    def decelerate(self, waypoints):
-        last = waypoints[-1]
-        last.twist.twist.linear.x = 0.
-        for wp in waypoints[:-1][::-1]:
-            dist = self.distance(wp.pose.pose.position, last.pose.pose.position)
-            vel = math.sqrt(2 * MAX_DECEL * dist)
-            if vel < 1.:
-                vel = 0.
-            wp.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
         return waypoints
 
     def publish(self, waypoints):

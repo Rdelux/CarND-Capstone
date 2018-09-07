@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 import rospy
 from std_msgs.msg import Int32
+from std_msgs.msg import Bool
 from geometry_msgs.msg import PoseStamped, Pose
 from styx_msgs.msg import TrafficLightArray, TrafficLight
 from styx_msgs.msg import Lane
 from sensor_msgs.msg import Image
-from light_classification.tl_classifier import TLClassifier
-import tf
 import cv2
 import yaml
 from scipy.spatial import KDTree
+from cv_bridge import CvBridge, CvBridgeError
+import numpy as np
 
 STATE_COUNT_THRESHOLD = 3
 
@@ -20,6 +21,7 @@ class TLDetector(object):
         self.pose = None
         self.waypoints = None
         self.lights = []
+        self.bridge = CvBridge()    
 
         self.waypoints_2d = None
 
@@ -40,14 +42,13 @@ class TLDetector(object):
         self.config = yaml.load(config_string)
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
-
-        self.light_classifier = TLClassifier()
-        self.listener = tf.TransformListener()
+        self.upcoming_light_pub = rospy.Publisher('/traffic_light_ahead', Bool, queue_size=1)
 
         self.state = TrafficLight.UNKNOWN
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
         self.state_count = 0
+        self.is120wpAway_prev = False
 
         rospy.spin()
 
@@ -71,7 +72,7 @@ class TLDetector(object):
             msg (Image): image from car-mounted camera
 
         """
-        light_wp, state = self.process_traffic_lights()
+        light_wp, state = self.process_traffic_lights(msg)
 
         '''
         Publish upcoming red lights at camera frequency.
@@ -101,11 +102,10 @@ class TLDetector(object):
             int: index of the closest waypoint in self.waypoints
 
         """
-        #TODO implement
         closest_idx = self.waypoint_tree.query([x, y], 1)[1]
         return closest_idx
 
-    def get_light_state(self, light):
+    def get_light_state(self, light, msg):
         """Determines the current color of the traffic light
 
         Args:
@@ -115,9 +115,23 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        return light.state
+        cv_image = img2 = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+        cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+        cv_image = cv2.GaussianBlur(cv_image, (5, 5), 0)
+        circles = cv2.HoughCircles(cv_image,cv2.HOUGH_GRADIENT,1,50,
+            param1=100,param2=17,minRadius=4,maxRadius=20)
+        if(circles is None):
+            return
+        circles = np.uint16(np.around(circles))
+        for i in circles[0,:]:
+            if(img2[i[1], i[0]][2] > 190 and img2[i[1], i[0]][1] < 140):
+                return TrafficLight.RED
+            elif(img2[i[1], i[0]][1] > 230):
+                return TrafficLight.GREEN
 
-    def process_traffic_lights(self):
+        return TrafficLight.UNKNOWN
+
+    def process_traffic_lights(self, msg):
         """Finds closest visible traffic light, if one exists, and determines its
             location and color
 
@@ -129,8 +143,8 @@ class TLDetector(object):
         closest_light = None
         line_wp_idx = None
 
-        # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
+        is120wpAway = False
         if(self.pose):
             car_wp_idx = self.get_closest_waypoint(self.pose.pose.position.x, self.pose.pose.position.y)
 
@@ -140,13 +154,23 @@ class TLDetector(object):
                 temp_wp_idx = self.get_closest_waypoint(line[0], line[1])
 
                 d = temp_wp_idx - car_wp_idx
+                if d >= 0 and d < 120:
+                    is120wpAway = True
+
                 if d >= 0 and d < diff:
                     diff = d
                     closest_light = light
                     line_wp_idx = temp_wp_idx
 
-        if closest_light:
-            state = self.get_light_state(closest_light)
+        if(self.is120wpAway_prev == False and is120wpAway==True):
+            self.upcoming_light_pub.publish(Bool(True))
+        elif(self.is120wpAway_prev==True and is120wpAway==False):
+            self.upcoming_light_pub.publish(Bool(False))
+        
+        self.is120wpAway_prev = is120wpAway
+
+        if closest_light and is120wpAway == True:
+            state = self.get_light_state(closest_light, msg)
             return line_wp_idx, state
         
         return -1, TrafficLight.UNKNOWN
